@@ -278,6 +278,38 @@ void Schema :: GroupBySchema (Schema s, bool returnInt) {
 	
 }
 
+
+void Schema :: GroupBySchema (Schema s, bool returnInt,vector<string> groupingAttsNames) {
+    
+    numAtts = groupingAttsNames.size() + 1;
+    
+    if (myAtts) {
+        
+        delete[] myAtts;
+    
+    }
+    
+    myAtts = new Attribute[numAtts];
+    
+    Attribute atts[2] = {{"sum", Int}, {"sum", Double}};
+    
+    if (returnInt) {
+        
+        myAtts[0] = atts[0];
+        
+    } else {
+        
+        myAtts[0] = atts[1];
+        
+    }
+    
+    for (int i = 0; i < groupingAttsNames.size(); i++) {
+           myAtts[i+1] = s.myAtts[s.Find (strdup (groupingAttsNames[i].c_str ()))];
+           
+    }
+    
+}
+
 void Schema :: ProjectSchema (Schema s, vector<string> names, vector<int> &attsToKeep) {
 	
 	numAtts = names.size ();

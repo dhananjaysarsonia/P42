@@ -73,7 +73,7 @@ enum NodeType {
      SelectFileType, SelectPipeType, ProjectionType, DistinctType, SumType, GroupByType, JoinType
 };
 
-class QueryNode {
+class BaseNode {
 
 public:
     
@@ -82,25 +82,25 @@ public:
     NodeType nodeType;
     Schema schema;
     
-    QueryNode ();
-    QueryNode (NodeType type) : nodeType (type) {}
+    BaseNode ();
+    BaseNode (NodeType type) : nodeType (type) {}
     
-    ~QueryNode () {}
+    ~BaseNode () {}
     virtual void PrintNodes () {};
     
 };
 
-class JoinNode : public QueryNode {
+class NodeJoin : public BaseNode {
 
 public:
     
-    QueryNode *l;
-    QueryNode *r;
+    BaseNode *l;
+    BaseNode *r;
     CNF cnf;
 Record recordLiteral;
     
-    JoinNode () : QueryNode (JoinType) {}
-    ~JoinNode () {
+    NodeJoin () : BaseNode (JoinType) {}
+    ~NodeJoin () {
         
         if (l) delete l;
         if (r) delete r;
@@ -125,7 +125,7 @@ Record recordLiteral;
     
 };
 
-class ProjectNode : public QueryNode {
+class NodeProject : public BaseNode {
 
 public:
     
@@ -133,10 +133,10 @@ public:
     int numAttrsOutput;
     int *attrsToKeep;
     
-    QueryNode *fromNode;
+    BaseNode *fromNode;
     
-    ProjectNode () : QueryNode (ProjectionType) {}
-    ~ProjectNode () {
+    NodeProject () : BaseNode (ProjectionType) {}
+    ~NodeProject () {
         
         if (attrsToKeep) delete[] attrsToKeep;
         
@@ -165,7 +165,7 @@ public:
     
 };
 
-class SelectFileNode : public QueryNode {
+class NodeSelectFile : public BaseNode {
 
 public:
     
@@ -175,8 +175,8 @@ public:
     DBFile dbfile;
     Record recLiteral;
     
-    SelectFileNode () : QueryNode (SelectFileType) {}
-    ~SelectFileNode () {
+    NodeSelectFile () : BaseNode (SelectFileType) {}
+    ~NodeSelectFile () {
         if (isOpen) {
             dbfile.Close ();
         }
@@ -196,15 +196,15 @@ public:
 };
 
 
-class SumNode : public QueryNode {
+class NodeSum : public BaseNode {
 
 public:
     
     Function funcCompute;
-    QueryNode *fromNode;
+    BaseNode *fromNode;
     
-    SumNode () : QueryNode (SumType) {}
-    ~SumNode () {
+    NodeSum () : BaseNode (SumType) {}
+    ~NodeSum () {
         
         if (fromNode) delete fromNode;
         
@@ -223,12 +223,12 @@ public:
     }
 };
 
-class DistinctNode : public QueryNode {
+class NodeDistinct : public BaseNode {
 
 public:
-    QueryNode *fromNode;
-    DistinctNode () : QueryNode (DistinctType) {}
-    ~DistinctNode () {
+    BaseNode *fromNode;
+    NodeDistinct () : BaseNode (DistinctType) {}
+    ~NodeDistinct () {
         if (fromNode) delete fromNode;
     }
     void PrintNodes () {
@@ -241,17 +241,17 @@ public:
     }
 };
 
-class GroupByNode : public QueryNode {
+class NodeGroupBy : public BaseNode {
 
 public:
     
-    QueryNode *from;
+    BaseNode *from;
     
     Function computeFunc;
     OrderMaker group;
     
-    GroupByNode () : QueryNode (GroupByType) {}
-    ~GroupByNode () {
+    NodeGroupBy () : BaseNode (GroupByType) {}
+    ~NodeGroupBy () {
         
         if (from) delete from;
         
@@ -468,9 +468,9 @@ int main () {
     if (jOrder.size()==0){
         jOrder = tbNames;
     }
-    QueryNode *rootNode;
+    BaseNode *rootNode;
     auto jItem = jOrder.begin ();
-    SelectFileNode *selectFileNode = new SelectFileNode ();
+    NodeSelectFile *selectFileNode = new NodeSelectFile ();
     
     selectFileNode->isOpen = true;
     selectFileNode->pipeId = getPid ();
@@ -485,12 +485,12 @@ int main () {
         
     } else {
         
-        JoinNode *joinNode = new JoinNode ();
+        NodeJoin *joinNode = new NodeJoin ();
         
         joinNode->pipeId = getPid ();
         joinNode->l = selectFileNode;
         
-        selectFileNode = new SelectFileNode ();
+        selectFileNode = new NodeSelectFile ();
         
         selectFileNode->isOpen = true;
         selectFileNode->pipeId = getPid ();
@@ -507,16 +507,16 @@ int main () {
         
         while (jItem != jOrder.end ()) {
             
-            JoinNode *p = joinNode;
+            NodeJoin *p = joinNode;
             
-            selectFileNode = new SelectFileNode ();
+            selectFileNode = new NodeSelectFile ();
             selectFileNode->isOpen = true;
             selectFileNode->pipeId = getPid ();
             selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
             selectFileNode->schema.Reset (*jItem);
             selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->schema), selectFileNode->recLiteral);
             
-            joinNode = new JoinNode ();
+            joinNode = new NodeJoin ();
             
             joinNode->pipeId = getPid ();
             joinNode->l = p;
@@ -533,47 +533,50 @@ int main () {
         
     }
     
-    QueryNode *temp = rootNode;
+    BaseNode *temp = rootNode;
     
     if (groupingAtts) {
         
         if (distinctFunc) {
-            rootNode = new DistinctNode ();
+            rootNode = new NodeDistinct ();
             rootNode->pipeId = getPid ();
             rootNode->schema = temp->schema;
-            ((DistinctNode *) rootNode)->fromNode = temp;
+            ((NodeDistinct *) rootNode)->fromNode = temp;
             temp = rootNode;
 
         }
         
-        rootNode = new GroupByNode ();
+        rootNode = new NodeGroupBy ();
         
         vector<string> groupAtts;
         CopyNames (groupingAtts, groupAtts);
         
         rootNode->pipeId = getPid ();
-        ((GroupByNode *) rootNode)->computeFunc.GrowFromParseTree (finalFunction, temp->schema);
-        rootNode->schema.GroupBySchema (temp->schema, ((GroupByNode *) rootNode)->computeFunc.ReturnInt ());
-        ((GroupByNode *) rootNode)->group.growFromParseTree (groupingAtts, &(rootNode->schema));
+        ((NodeGroupBy *) rootNode)->computeFunc.GrowFromParseTree (finalFunction, temp->schema);
         
-        ((GroupByNode *) rootNode)->from = temp;
+        rootNode->schema.GroupBySchema (temp->schema, ((NodeGroupBy *) rootNode)->computeFunc.ReturnInt (), groupAtts);
+        
+        
+        ((NodeGroupBy *) rootNode)->group.growFromParseTree (groupingAtts, &(temp->schema));
+        
+        ((NodeGroupBy *) rootNode)->from = temp;
         
     } else if (finalFunction) {
         
-        rootNode = new SumNode ();
+        rootNode = new NodeSum ();
         
         rootNode->pipeId = getPid ();
-        ((SumNode *) rootNode)->funcCompute.GrowFromParseTree (finalFunction, temp->schema);
+        ((NodeSum *) rootNode)->funcCompute.GrowFromParseTree (finalFunction, temp->schema);
         
         Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
-        rootNode->schema = Schema (NULL, 1, ((SumNode *) rootNode)->funcCompute.ReturnInt () ? atts[0] : atts[1]);
+        rootNode->schema = Schema (NULL, 1, ((NodeSum *) rootNode)->funcCompute.ReturnInt () ? atts[0] : atts[1]);
         
-        ((SumNode *) rootNode)->fromNode = temp;
+        ((NodeSum *) rootNode)->fromNode = temp;
         
     }
     else if (attsToSelect) {
         
-        rootNode = new ProjectNode ();
+        rootNode = new NodeProject ();
         
         vector<int> attsToKeep;
         vector<string> atts;
@@ -581,11 +584,11 @@ int main () {
         
         rootNode->pipeId = getPid ();
         rootNode->schema.ProjectSchema (temp->schema, atts, attsToKeep);
-        ((ProjectNode *) rootNode)->attrsToKeep = &attsToKeep[0];
-        ((ProjectNode *) rootNode)->numAttrsOutput = atts.size ();
-        ((ProjectNode *) rootNode)->numAttrsInput = temp->schema.GetNumAtts ();
+        ((NodeProject *) rootNode)->attrsToKeep = &attsToKeep[0];
+        ((NodeProject *) rootNode)->numAttrsOutput = atts.size ();
+        ((NodeProject *) rootNode)->numAttrsInput = temp->schema.GetNumAtts ();
        
-        ((ProjectNode *) rootNode)->fromNode = temp;
+        ((NodeProject *) rootNode)->fromNode = temp;
         
     }
     cout << "Parse Tree : " << endl;
