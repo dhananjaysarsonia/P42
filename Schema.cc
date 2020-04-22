@@ -233,7 +233,7 @@ void Schema :: Print () {
 	
 }
 
-void Schema :: Reseat (string prefix) {
+void Schema :: Reset (string prefix) {
 	
 	for (int i = 0; i < numAtts; i++) {
 		
