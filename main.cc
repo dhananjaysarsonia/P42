@@ -12,9 +12,6 @@
 #include "Statistics.h"
 #include "Comparison.h"
 
-// SELECT l.l_orderkey, s.s_suppkey, o.o_orderkey FROM lineitem AS l, supplier AS s, orders AS o WHERE (l.l_suppkey = s.s_suppkey) AND (l.l_orderkey = o.o_orderkey)
-// SELECT SUM DISTINCT (s.s_acctbal) FROM lineitem AS l, supplier AS s, orders AS o WHERE (l.l_suppkey = s.s_suppkey) AND (l.l_orderkey = o.o_orderkey) GROUP BY s.s_suppkey
-
 extern "C" {
     int yyparse (void);   // defined in y.tab.c
 }
@@ -93,8 +90,9 @@ public:
     }
     
     void Print () {
-        
-        cout << "*******" << endl;
+        left->Print ();
+        right->Print ();
+        cout << "*********************" << endl;
         cout << "Join Operation" << endl;
         cout << "Input Pipe 1 ID : " << left->pid << endl;
         cout << "Input Pipe 2 ID : " << right->pid << endl;
@@ -102,11 +100,8 @@ public:
         cout << "Output Schema : " << endl;
         sch.Print ();
         cout << "Join CNF : " << endl;
-        cnf.Print ();
-        cout << "*******" << endl;
-        
-        left->Print ();
-        right->Print ();
+        cnf.PrintWithSchema(&left->sch,&right->sch,&literal);
+        cout << "*********************" << endl;
         
     }
     
@@ -130,8 +125,8 @@ public:
     }
     
     void Print () {
-        
-        cout << "*******" << endl;
+        from->Print ();
+        cout << "*********************" << endl;
         cout << "Project Operation" << endl;
         cout << "Input Pipe ID : " << from->pid << endl;
         cout << "Output Pipe ID " << pid << endl;
@@ -145,9 +140,8 @@ public:
         cout << "Number Attrs Output : " << numOut << endl;
         cout << "Output Schema:" << endl;
         sch.Print ();
-        cout << "*******" << endl;
+        cout << "*********************" << endl;
         
-        from->Print ();
         
     }
     
@@ -176,14 +170,14 @@ public:
     
     void Print () {
         
-        cout << "*******" << endl;
+        cout << "*********************" << endl;
         cout << "Select File Operation" << endl;
         cout << "Output Pipe ID " << pid << endl;
         cout << "Output Schema:" << endl;
         sch.Print ();
         cout << "Select CNF:" << endl;
-        cnf.Print ();
-        cout << "*******" << endl;
+        cnf.PrintWithSchema(&sch,&sch,&literal);
+        cout << "*********************" << endl;
         
     }
     
@@ -205,19 +199,17 @@ public:
     }
     
     void Print () {
-        
-        cout << "*******" << endl;
+        from->Print ();
+        cout << "*********************" << endl;
         cout << "Select Pipe Operation" << endl;
         cout << "Input Pipe ID : " << from->pid << endl;
         cout << "Output Pipe ID : " << pid << endl;
         cout << "Output Schema:" << endl;
         sch.Print ();
         cout << "Select CNF:" << endl;
-        cnf.Print ();
-        cout << "*******" << endl;
-        
-        from->Print ();
-        
+        cnf.PrintWithSchema(&sch,&sch,&literal);
+        cout << "*********************" << endl;
+            
     }
     
 };
@@ -238,16 +230,15 @@ public:
     
     void Print () {
         
-        cout << "*******" << endl;
+        from->Print ();
+        cout << "*********************" << endl;
         cout << "Sum Operation" << endl;
         cout << "Input Pipe ID : " << from->pid << endl;
         cout << "Output Pipe ID : " << pid << endl;
         cout << "Function :" << endl;
         compute.Print ();
-        cout << "*******" << endl;
-        
-        from->Print ();
-        
+        cout << "*********************" << endl;
+                
     }
     
 };
@@ -266,14 +257,12 @@ public:
     }
     
     void Print () {
-        
-        cout << "*******" << endl;
+        from->Print ();
+        cout << "*********************" << endl;
         cout << "Duplication Elimation Operation" << endl;
         cout << "Input Pipe ID : " << from->pid << endl;
         cout << "Output Pipe ID : " << pid << endl;
-        cout << "*******" << endl;
-        
-        from->Print ();
+        cout << "*********************" << endl;
         
     }
     
@@ -297,7 +286,8 @@ public:
     
     void Print () {
         
-        cout << "*******" << endl;
+        from->Print ();
+        cout << "*********************" << endl;
         cout << "Group By Operation" << endl;
         cout << "Input Pipe ID : " << from->pid << endl;
         cout << "Output Pipe ID : " << pid << endl;
@@ -307,10 +297,8 @@ public:
         compute.Print ();
         cout << "OrderMaker : " << endl;
         group.Print ();
-        cout << "*******" << endl;
-        
-        from->Print ();
-        
+        cout << "*********************" << endl;
+            
     }
     
 };
@@ -332,13 +320,12 @@ public:
     
     void Print () {
         
-        cout << "*******" << endl;
+        from->Print ();
+        cout << "*********************" << endl;
         cout << "Write Out Operation" << endl;
         cout << "Input Pipe ID : " << from->pid << endl;
-        cout << "*******" << endl;
-        
-        from->Print ();
-        
+        cout << "*********************" << endl;
+                
     }
     
 };
@@ -699,7 +686,7 @@ int main () {
     selectFileNode->opened = true;
     selectFileNode->pid = getPid ();
     selectFileNode->sch = Schema (schemaMap[aliaseMap[*iter]]);
-    selectFileNode->sch.Reseat (*iter);
+    selectFileNode->sch.Reseat(*iter);
     selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->sch), selectFileNode->literal);
     
     iter++;
@@ -728,7 +715,7 @@ int main () {
         
         joinNode->right = selectFileNode;
         joinNode->sch.JoinSchema (joinNode->left->sch, joinNode->right->sch);
-        joinNode->cnf.GrowFromParseTree (boolean, &(joinNode->left->sch), &(joinNode->right->sch), joinNode->literal);
+        joinNode->cnf.GrowFromParseTreeForJoin (boolean, &(joinNode->left->sch), &(joinNode->right->sch), joinNode->literal);
         
         iter++;
         
@@ -753,7 +740,7 @@ int main () {
             joinNode->right = selectFileNode;
             
             joinNode->sch.JoinSchema (joinNode->left->sch, joinNode->right->sch);
-            joinNode->cnf.GrowFromParseTree (boolean, &(joinNode->left->sch), &(joinNode->right->sch), joinNode->literal);
+            joinNode->cnf.GrowFromParseTreeForJoin (boolean, &(joinNode->left->sch), &(joinNode->right->sch), joinNode->literal);
             
             iter++;
             
