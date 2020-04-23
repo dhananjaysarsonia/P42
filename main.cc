@@ -441,13 +441,20 @@ int main () {
         auto tbItem = tbNames.begin ();
         buff[0] = *tbItem;
         tbItem++;
+        for(int i = 0 ; i < tbNames.size(); i++){
+            
+            cout << tbNames[i] << ", ";
+        }
         
+        cout << endl;
         while (tbItem != tbNames.end ()) {
 
             buff[1] = *tbItem;
             currentCost += temp.Estimate (boolean, &buff[0], 2);
             temp.Apply (boolean, &buff[0], 2);
-            
+            cout << "Buffer 0" << buff[0] << endl;
+            cout << "Buffer 1" << buff[1] << endl;
+            cout << currentCost <<endl;
             if (currentCost <= 0 || currentCost > minimum) {
                 break;
             }
@@ -456,6 +463,7 @@ int main () {
         if (currentCost > 0 && currentCost < minimum) {
             minimum = currentCost;
             jOrder = tbNames;
+            cout << "Minumum Found" << minimum << endl;
         }
 
         currentCost = 0;
