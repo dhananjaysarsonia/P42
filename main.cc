@@ -76,7 +76,7 @@ enum NodeType {
 };
 
 class BaseNode {
-//base node class of our node
+//base node class of our node. We will be other n
     
 public:
     
@@ -214,7 +214,7 @@ public:
         cout << "Input Pipe: " << fromNode->pipeId << endl;
         cout << "Output Pipe: " << pipeId << endl;
         cout << "Function:" << endl;
-        funcCompute.Print ();
+        funcCompute.Print (&fromNode->schema);
         cout << "*********************" << endl;
     }
 };
@@ -263,7 +263,7 @@ public:
         cout << "Output Schema : " << endl;
         schema.Print ();
         cout << "Function : " << endl;
-        computeFunc.Print ();
+        computeFunc.Print (&from->schema);
         cout << "OrderMaker : " << endl;
         group.Print ();
         cout << "*********************" << endl;
