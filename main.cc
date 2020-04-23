@@ -67,8 +67,8 @@ typedef map<string, string> AliaseMap;
 
 
 void FindMinCostJoin( vector<char *> &jOrder, vector<char *> &tbNames, Statistics &stat, vector<char *> &buff){
-      double minimum = INT_MAX;
-      double currentCost = 0;
+      int minimum = INT_MAX;
+      int currentCost = 0;
       do {
           Statistics temp (stat);
 
@@ -263,7 +263,7 @@ int main () {
     initializeSchemaMap (schemaMap);
     initializeStat (stat);
     CopyTbNamesAliases (tables, stat, tbNames, aliaseMap);
-    
+        
     sort (tbNames.begin (), tbNames.end ());
     
     FindMinCostJoin(jOrder, tbNames, stat, buff);
