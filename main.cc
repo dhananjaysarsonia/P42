@@ -61,20 +61,23 @@ char *orders = "orders";
 char *region = "region";
 char *lineitem = "lineitem";
 
-
+//initializing pipe to zero
 static int pipeId = 0;
-int getPid () {
-    
+int getPipeId () {
+    //we will increment the pipeId before assigning it
     return ++pipeId;
     
 }
 
 enum NodeType {
+    //enum to define NodeType.
+    //ToDo: remove the enums
      SelectFileType, SelectPipeType, ProjectionType, DistinctType, SumType, GroupByType, JoinType
 };
 
 class BaseNode {
-
+//base node class of our node
+    
 public:
     
     int pipeId;
@@ -197,21 +200,14 @@ public:
 
 
 class NodeSum : public BaseNode {
-
 public:
-    
     Function funcCompute;
     BaseNode *fromNode;
-    
     NodeSum () : BaseNode (SumType) {}
     ~NodeSum () {
-        
         if (fromNode) delete fromNode;
-        
     }
-    
     void PrintNodes () {
-        
         fromNode->PrintNodes ();
         cout << "*********************" << endl;
         cout << "Sum Operation" << endl;
@@ -473,7 +469,7 @@ int main () {
     NodeSelectFile *selectFileNode = new NodeSelectFile ();
     
     selectFileNode->isOpen = true;
-    selectFileNode->pipeId = getPid ();
+    selectFileNode->pipeId = getPipeId ();
     selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
     selectFileNode->schema.Reset(*jItem);
     selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->schema), selectFileNode->recLiteral);
@@ -487,13 +483,13 @@ int main () {
         
         NodeJoin *joinNode = new NodeJoin ();
         
-        joinNode->pipeId = getPid ();
+        joinNode->pipeId = getPipeId ();
         joinNode->l = selectFileNode;
         
         selectFileNode = new NodeSelectFile ();
         
         selectFileNode->isOpen = true;
-        selectFileNode->pipeId = getPid ();
+        selectFileNode->pipeId = getPipeId ();
         selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
         
         selectFileNode->schema.Reset (*jItem);
@@ -511,14 +507,14 @@ int main () {
             
             selectFileNode = new NodeSelectFile ();
             selectFileNode->isOpen = true;
-            selectFileNode->pipeId = getPid ();
+            selectFileNode->pipeId = getPipeId ();
             selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
             selectFileNode->schema.Reset (*jItem);
             selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->schema), selectFileNode->recLiteral);
             
             joinNode = new NodeJoin ();
             
-            joinNode->pipeId = getPid ();
+            joinNode->pipeId = getPipeId ();
             joinNode->l = p;
             joinNode->r = selectFileNode;
             
@@ -539,7 +535,7 @@ int main () {
         
         if (distinctFunc) {
             rootNode = new NodeDistinct ();
-            rootNode->pipeId = getPid ();
+            rootNode->pipeId = getPipeId ();
             rootNode->schema = temp->schema;
             ((NodeDistinct *) rootNode)->fromNode = temp;
             temp = rootNode;
@@ -551,7 +547,7 @@ int main () {
         vector<string> groupAtts;
         CopyNames (groupingAtts, groupAtts);
         
-        rootNode->pipeId = getPid ();
+        rootNode->pipeId = getPipeId ();
         ((NodeGroupBy *) rootNode)->computeFunc.GrowFromParseTree (finalFunction, temp->schema);
         
         rootNode->schema.GroupBySchema (temp->schema, ((NodeGroupBy *) rootNode)->computeFunc.ReturnInt (), groupAtts);
@@ -565,7 +561,7 @@ int main () {
         
         rootNode = new NodeSum ();
         
-        rootNode->pipeId = getPid ();
+        rootNode->pipeId = getPipeId ();
         ((NodeSum *) rootNode)->funcCompute.GrowFromParseTree (finalFunction, temp->schema);
         
         Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
@@ -577,12 +573,11 @@ int main () {
     else if (attsToSelect) {
         
         rootNode = new NodeProject ();
-        
         vector<int> attsToKeep;
         vector<string> atts;
         CopyNames (attsToSelect, atts);
         
-        rootNode->pipeId = getPid ();
+        rootNode->pipeId = getPipeId ();
         rootNode->schema.ProjectSchema (temp->schema, atts, attsToKeep);
         ((NodeProject *) rootNode)->attrsToKeep = &attsToKeep[0];
         ((NodeProject *) rootNode)->numAttrsOutput = atts.size ();
