@@ -216,6 +216,7 @@ void initializeStat (Statistics &statist) {
 
 void CopyTbNamesAliases (TableList *tbList, Statistics &stat, vector<char *> &tbNames, AliaseMap &alMap) {
     while (tbList) {
+        //here we copy the aliases of the table names
         stat.CopyRel (tbList->tableName, tbList->aliasAs);
         alMap[tbList->aliasAs] = tbList->tableName;
         tbNames.push_back (tbList->aliasAs);
@@ -226,6 +227,7 @@ void CopyTbNamesAliases (TableList *tbList, Statistics &stat, vector<char *> &tb
 
 void CopyNames(NameList *nameList, vector<string> &names) {
     while (nameList) {
+        //we create a copy of name into a vector
         names.push_back (string (nameList->name));
         nameList = nameList->next;
     }
@@ -234,7 +236,6 @@ void CopyNames(NameList *nameList, vector<string> &names) {
 void PrintFunction (FuncOperator *funcOp) {
     if (funcOp) {
         cout << "(";
-
         PrintFunction (funcOp->leftOperator);
         
         cout << funcOp->leftOperand->value << " ";
@@ -249,41 +250,47 @@ void PrintFunction (FuncOperator *funcOp) {
 }
 
 int main () {
-    
+    //getting the sql from the user
     cout << "SQL>>" << endl;
+    //parsing the sql
     yyparse ();
     cout << endl;
+    //initializing alias map
     AliaseMap aliaseMap;
     vector<char *> tbNames;
     vector<char *> jOrder;
     vector<char *> buff (2);
     SchemaMap schemaMap;
     Statistics stat;
-    
+    //initializing schema map with the schemas given
     initializeSchemaMap (schemaMap);
+    //adding relations to statistic object
     initializeStat (stat);
+    //copying aliases of tbnames from the sql query given
     CopyTbNamesAliases (tables, stat, tbNames, aliaseMap);
-        
+        //sorting the table names
     sort (tbNames.begin (), tbNames.end ());
-    
+    //we will find the minimum cost join from the tables. FindMinCostJoin will try all the possible permutations and find the min cost combination
+    //we will use the table sequence with min cost
     FindMinCostJoin(jOrder, tbNames, stat, buff);
 
-    
     if (jOrder.size()==0){
         jOrder = tbNames;
     }
-    
-    
     BaseNode *rootNode;
     auto jItem = jOrder.begin ();
+    //we are building node tree from bottom to top
+    //we will first create select file node
     NodeSelectFile *selectFileNode = new NodeSelectFile ();
 
+    
     selectFileNode->isOpen = true;
     selectFileNode->pipeId = getPipeId ();
     selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
     selectFileNode->schema.Reset(*jItem);
     selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->schema), selectFileNode->recLiteral);
 
+    //then we check if we are working on more than one table. If we are working on single table, then we don't need to put join and we can proceed with select nodes
     jItem++;
     if (jItem == jOrder.end ()) {
 
@@ -291,40 +298,50 @@ int main () {
 
     } else {
 
+        //we create a join node. the join node will be the parent of our select file nodes
         NodeJoin *joinNode = new NodeJoin ();
 
+        //we allocate pipe id to join node. Here also pipes are used to process rows
         joinNode->pipeId = getPipeId ();
+    
+        //we set our current select file node on the lect
         joinNode->l = selectFileNode;
-
+        //then we create new file node for our other table
         selectFileNode = new NodeSelectFile ();
 
+        //ispen indicates the status of the file node
         selectFileNode->isOpen = true;
+        //we allocate the id of the pipe
         selectFileNode->pipeId = getPipeId ();
+        //we attach schema to the select file node
         selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
-
+        
         selectFileNode->schema.Reset (*jItem);
+        //we create our and list from the schema
         selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->schema), selectFileNode->recLiteral);
-
+        //we attach this file node to the right of our join node
         joinNode->r = selectFileNode;
         joinNode->schema.JoinSchema (joinNode->l->schema, joinNode->r->schema);
         joinNode->cnf.GrowFromParseTreeForJoin (boolean, &(joinNode->l->schema), &(joinNode->r->schema), joinNode->recordLiteral);
 
         jItem++;
 
+        //we continue the operation for all the other remaining tables
         while (jItem != jOrder.end ()) {
-
+            // we point store a pointer to our previous join node
             NodeJoin *p = joinNode;
-
+            //then we create a new select file node for our table and allocate it a new pipe id
             selectFileNode = new NodeSelectFile ();
             selectFileNode->isOpen = true;
             selectFileNode->pipeId = getPipeId ();
             selectFileNode->schema = Schema (schemaMap[aliaseMap[*jItem]]);
             selectFileNode->schema.Reset (*jItem);
             selectFileNode->cnf.GrowFromParseTree (boolean, &(selectFileNode->schema), selectFileNode->recLiteral);
-
+            // then we create a new join node which will be the parent of our previous join node and new select file node
             joinNode = new NodeJoin ();
-
+            //we allocate it a pipe id
             joinNode->pipeId = getPipeId ();
+            //we put our previous join node as left and select file node as right of the join node
             joinNode->l = p;
             joinNode->r = selectFileNode;
 
@@ -335,43 +352,49 @@ int main () {
 
         }
 
+        //we store the top most join node as our root node
         rootNode = joinNode;
 
     }
 
+    //now we check if we have to apply group, aggregate or project operation
     BaseNode *temp = rootNode;
-
+    //we check if we have group attributes
     if (groupingAtts) {
-
         if (distinctFunc) {
+            //we create distinct function for our join node
             rootNode = new NodeDistinct ();
+            //we allocate the pipe id then
             rootNode->pipeId = getPipeId ();
+            //we put the schema
             rootNode->schema = temp->schema;
             ((NodeDistinct *) rootNode)->fromNode = temp;
             temp = rootNode;
-
         }
-
+        
+        //then we create our groupby node
         rootNode = new NodeGroupBy ();
 
         vector<string> groupAtts;
         CopyNames (groupingAtts, groupAtts);
 
+        //allocate new pipe id
         rootNode->pipeId = getPipeId ();
+        //generate parse tree
         ((NodeGroupBy *) rootNode)->computeFunc.GrowFromParseTree (finalFunction, temp->schema);
-
         rootNode->schema.GroupBySchema (temp->schema, ((NodeGroupBy *) rootNode)->computeFunc.ReturnInt (), groupAtts);
-
-
         ((NodeGroupBy *) rootNode)->group.growFromParseTree (groupingAtts, &(temp->schema));
 
         ((NodeGroupBy *) rootNode)->from = temp;
 
     } else if (finalFunction) {
 
+        //if node is the aggregate function then we create a sum node
         rootNode = new NodeSum ();
 
+       //allocate pipe id
         rootNode->pipeId = getPipeId ();
+        //create parse tree
         ((NodeSum *) rootNode)->funcCompute.GrowFromParseTree (finalFunction, temp->schema);
 
         Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
@@ -380,26 +403,28 @@ int main () {
         ((NodeSum *) rootNode)->fromNode = temp;
 
     }
+    //if attributes are to be selected then we create a project node
     else if (attsToSelect) {
 
         rootNode = new NodeProject ();
+        //create a vector which will keep the attributes to keep
         vector<int> attsToKeep;
         vector<string> atts;
         CopyNames (attsToSelect, atts);
-
         rootNode->pipeId = getPipeId ();
+        //generate  the schema
         rootNode->schema.ProjectSchema (temp->schema, atts, attsToKeep);
+        //set the attribute to keep and input and output values
         ((NodeProject *) rootNode)->attrsToKeep = &attsToKeep[0];
         ((NodeProject *) rootNode)->numAttrsOutput = atts.size ();
         ((NodeProject *) rootNode)->numAttrsInput = temp->schema.GetNumAtts ();
 
+        //attach the node to root node
         ((NodeProject *) rootNode)->fromNode = temp;
 
     }
     
-    
-    
-
+    //print the whole tree from root node
     printTree(rootNode);
 
     
