@@ -95,8 +95,9 @@ int Statistics :: GetRelation (Operand *operand, char *rNames[], int nJoin, Rela
         return -1;
     }
     //iterating through the relationship map
+    string strValue (operand->value);
     for (auto item = relMap.begin (); item != relMap.end (); item++) {
-        string strValue (operand->value);
+
         //it will return 0 if the condition satisfies
         if (item->second.attrmapList.find (strValue) != item->second.attrmapList.end()) {
             relHelper = item->second;
@@ -393,11 +394,10 @@ double Statistics :: Estimate (struct AndList *parseTree, char **relNames, int n
 	//estimate helps us to perform join operation without any modification
 	while (iterIndex < numToJoin) {
 		//for each relationship we calculate the product
-		string buffer (relNames[iterIndex]);
-		
+        string buffer (relNames[iterIndex]);
+        
 		if (relMap.find (buffer) != relMap.end ()) {
 			r *= (double) relMap[buffer].numOfTuples;
-
 		}
         //then we increment the index
 		iterIndex++;

@@ -79,40 +79,48 @@ class BaseNode {
 //base node class of our node. We will be other n
     
 public:
-    
+    //pipe id
     int pipeId;
-    
+    //type of node from our enum
     NodeType nodeType;
     Schema schema;
-    
+    //constructor for base node accepting type
     BaseNode ();
     BaseNode (NodeType type) : nodeType (type) {}
-    
+
     ~BaseNode () {}
+    //virtual function for print overridden by children classes to print different kind of nodes
     virtual void PrintNodes () {};
     
 };
 
 class NodeJoin : public BaseNode {
-
+//join node will be created for join operation
 public:
-    
+    //node from left
     BaseNode *l;
+    //node from right
     BaseNode *r;
+    //cnf for join
     CNF cnf;
 Record recordLiteral;
-    
+    //initializing node with the join type
+    //ToDo: now it is irrelevant to pass the join type
     NodeJoin () : BaseNode (JoinType) {}
     ~NodeJoin () {
-        
+        // freeing up values in the destructor
         if (l) delete l;
         if (r) delete r;
         
     }
     
     void PrintNodes () {
+        //calling print recursively
+        //first calling print on left node
         l->PrintNodes ();
+        //then on right node
         r->PrintNodes ();
+        //then printing the current parent node
         cout << "*********************" << endl;
         cout << "Join Operation" << endl;
         cout << "Left Input Pipe: " << l->pipeId << endl;
@@ -129,36 +137,47 @@ Record recordLiteral;
 };
 
 class NodeProject : public BaseNode {
-
+//node for our project operation
 public:
-    
+    //number of attributes in the input
     int numAttrsInput;
+    //number of attributes in the output
     int numAttrsOutput;
+    //the attributes which we need to keep from the data
     int *attrsToKeep;
-    
+    //node on which operation needs to be applied
     BaseNode *fromNode;
     
     NodeProject () : BaseNode (ProjectionType) {}
     ~NodeProject () {
-        
+        //destructor to free up attrsToKeep
         if (attrsToKeep) delete[] attrsToKeep;
         
     }
-    
+    //printing node recursively
     void PrintNodes () {
+        //calling print node on the from node
         fromNode->PrintNodes ();
+        //printing the final project operation results
         cout << "*********************" << endl;
         cout << "Project Operation" << endl;
+        //printing input pipe id
         cout << "Input Pipe: " << fromNode->pipeId << endl;
+        //printing output pipe ID
         cout << "Output Pipe" << pipeId << endl;
+        //printing number of attributes
         cout << "NumAtts: " << numAttrsInput << endl;
+        //printing attributes to keep
         cout << "Atts To Keep :" << endl;
+        //printing the attributes to keep
         for (int i = 0; i < numAttrsOutput; i++) {
             
             cout << attrsToKeep[i] << endl;
             
         }
+        //printing number of attributes in the final output
         cout << "Number Attrs Output : " << numAttrsOutput << endl;
+        //printing the output schema
         cout << "Output Schema:" << endl;
         schema.Print ();
         cout << "*********************" << endl;
@@ -169,27 +188,34 @@ public:
 };
 
 class NodeSelectFile : public BaseNode {
-
+//select file supports CNF for select pipe also. Our both the operations are same
 public:
-    
+    //flag to check if file is open
     bool isOpen;
-    
+    //cnf supporting our select pipe operation
     CNF cnf;
+    //dbfile for select file operation
     DBFile dbfile;
     Record recLiteral;
     
     NodeSelectFile () : BaseNode (SelectFileType) {}
     ~NodeSelectFile () {
         if (isOpen) {
+            //closing the file if file is open
             dbfile.Close ();
         }
     }
     void PrintNodes () {
+        //select file print operation
         cout << "*********************" << endl;
         cout << "Select File Operation" << endl;
+        //out pipe id
         cout << "Output Pipe " << pipeId << endl;
+        //schema from output pipe
         cout << "Output Schema:" << endl;
+        //printing the schema
         schema.Print ();
+        //printing the CNF
         cout << "CNF:" << endl;
         cnf.PrintWithSchema(&schema,&schema,&recLiteral);
         cout << "*********************" << endl;
@@ -200,7 +226,9 @@ public:
 
 
 class NodeSum : public BaseNode {
+    //Node for sum operation
 public:
+    
     Function funcCompute;
     BaseNode *fromNode;
     NodeSum () : BaseNode (SumType) {}
@@ -208,11 +236,15 @@ public:
         if (fromNode) delete fromNode;
     }
     void PrintNodes () {
+        //printing our sum node
         fromNode->PrintNodes ();
         cout << "*********************" << endl;
         cout << "Sum Operation" << endl;
+        //printing the input pipe id
         cout << "Input Pipe: " << fromNode->pipeId << endl;
+        //output pipe id
         cout << "Output Pipe: " << pipeId << endl;
+        //our final function schema
         cout << "Function:" << endl;
         funcCompute.Print (&fromNode->schema);
         cout << "*********************" << endl;
@@ -220,18 +252,23 @@ public:
 };
 
 class NodeDistinct : public BaseNode {
-
+//node for distinct operation
 public:
     BaseNode *fromNode;
+    //passing distinct type enum to our node
     NodeDistinct () : BaseNode (DistinctType) {}
     ~NodeDistinct () {
         if (fromNode) delete fromNode;
     }
     void PrintNodes () {
+        //calling print from the from node
         fromNode->PrintNodes ();
+        //printing our distinct node
         cout << "*********************" << endl;
         cout << "Duplication Elimation Operation" << endl;
+        //printing input pipe id
         cout << "Input Pipe: " << fromNode->pipeId << endl;
+        //printing output pipe id
         cout << "Output Pipe: " << pipeId << endl;
         cout << "*********************" << endl;
     }
@@ -240,30 +277,34 @@ public:
 class NodeGroupBy : public BaseNode {
 
 public:
-    
+    //group by node
     BaseNode *from;
-    
     Function computeFunc;
+    //order maker for group
     OrderMaker group;
     
     NodeGroupBy () : BaseNode (GroupByType) {}
     ~NodeGroupBy () {
-        
+        //deleting node
         if (from) delete from;
         
     }
     
     void PrintNodes () {
-        
+        //printing group by node
         from->PrintNodes ();
+        
         cout << "*********************" << endl;
         cout << "Group By Operation" << endl;
+        //printing input pipe id
         cout << "Input Pipe ID : " << from->pipeId << endl;
+        //output pipe id
         cout << "Output Pipe ID : " << pipeId << endl;
+        //schema print
         cout << "Output Schema : " << endl;
         schema.Print ();
         cout << "Function : " << endl;
-        computeFunc.Print (&from->schema);
+        computeFunc.Print (&from->schema);//then we finally print the order maker
         cout << "OrderMaker : " << endl;
         group.Print ();
         cout << "*********************" << endl;
@@ -278,7 +319,7 @@ typedef map<string, Schema> SchemaMap;
 typedef map<string, string> AliaseMap;
 
 void initializeSchemaMap (SchemaMap &schemaMap) {
-    
+    //intializing schma mapping for our all the schema in dictionary
     schemaMap[string(region)] = Schema ("catalog", region);
     schemaMap[string(part)] = Schema ("catalog", part);
     schemaMap[string(partsupp)] = Schema ("catalog", partsupp);
@@ -291,7 +332,7 @@ void initializeSchemaMap (SchemaMap &schemaMap) {
 }
 
 void initializeStat (Statistics &statist) {
-    
+    //initialzing for
     statist.AddRel (region, n_region);
     statist.AddRel (nation, n_nation);
     statist.AddRel (part, n_part);
@@ -414,9 +455,55 @@ void PrintFunction (FuncOperator *funcOp) {
     
 }
 
+
+void FindMinCostJoin( vector<char *> &jOrder, vector<char *> &tbNames, Statistics &stat, vector<char *> &buff){
+      double minimum = INT_MAX;
+      double currentCost = 0;
+      do {
+          Statistics temp (stat);
+
+          auto tbItem = tbNames.begin ();
+          buff[0] = *tbItem;
+          tbItem++;
+//          for(int i = 0 ; i < tbNames.size(); i++){
+//
+//              cout << tbNames[i] << ", ";
+//          }
+//
+        //  cout << endl;
+          while (tbItem != tbNames.end ()) {
+
+              buff[1] = *tbItem;
+              currentCost += temp.Estimate (boolean, &buff[0], 2);
+              temp.Apply (boolean, &buff[0], 2);
+//             cout << "Buffer 0" << buff[0] << endl;
+//             cout << "Buffer 1" << buff[1] << endl;
+//              cout << currentCost <<endl;
+              if (currentCost <= 0 || currentCost > minimum) {
+                  break;
+              }
+              tbItem++;
+          }
+          if (currentCost > 0 && currentCost < minimum) {
+              minimum = currentCost;
+              jOrder = tbNames;
+          //    cout << "Minumum Found" << minimum << endl;
+          }
+
+          currentCost = 0;
+      } while (next_permutation (tbNames.begin (), tbNames.end ()));
+    
+}
+
+void printTree(BaseNode *rootNode){
+    cout << "Parse Tree : " << endl;
+    rootNode->PrintNodes ();
+    
+}
+
 int main () {
     
-    cout << "SQL>>" << endl;;
+    cout << "SQL>>" << endl;
     yyparse ();
     cout << endl;
     AliaseMap aliaseMap;
@@ -432,42 +519,8 @@ int main () {
     
     sort (tbNames.begin (), tbNames.end ());
     
-    int minimum = INT_MAX;
-    int currentCost = 0;
-    do {
-        
-        Statistics temp (stat);
-        
-        auto tbItem = tbNames.begin ();
-        buff[0] = *tbItem;
-        tbItem++;
-        for(int i = 0 ; i < tbNames.size(); i++){
-            
-            cout << tbNames[i] << ", ";
-        }
-        
-        cout << endl;
-        while (tbItem != tbNames.end ()) {
+    FindMinCostJoin(jOrder, tbNames, stat, buff);
 
-            buff[1] = *tbItem;
-            currentCost += temp.Estimate (boolean, &buff[0], 2);
-            temp.Apply (boolean, &buff[0], 2);
-            cout << "Buffer 0" << buff[0] << endl;
-            cout << "Buffer 1" << buff[1] << endl;
-            cout << currentCost <<endl;
-            if (currentCost <= 0 || currentCost > minimum) {
-                break;
-            }
-            tbItem++;
-        }
-        if (currentCost > 0 && currentCost < minimum) {
-            minimum = currentCost;
-            jOrder = tbNames;
-            cout << "Minumum Found" << minimum << endl;
-        }
-
-        currentCost = 0;
-    } while (next_permutation (tbNames.begin (), tbNames.end ()));
     
     if (jOrder.size()==0){
         jOrder = tbNames;
@@ -594,8 +647,9 @@ int main () {
         ((NodeProject *) rootNode)->fromNode = temp;
         
     }
-    cout << "Parse Tree : " << endl;
-    rootNode->PrintNodes ();
+    printTree(rootNode);
+//    cout << "Parse Tree : " << endl;
+//    rootNode->PrintNodes ();
     
     return 0;
     

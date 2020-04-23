@@ -129,6 +129,7 @@
 		D10E0F90244FA07F0042E939 /* catalog */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = catalog; sourceTree = "<group>"; };
 		D10E0F91244FA07F0042E939 /* ParseTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParseTree.h; sourceTree = "<group>"; };
 		D10E0F92244FA07F0042E939 /* Schema.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Schema.cc; sourceTree = "<group>"; };
+		D1100C2F2451EA5E00A656BF /* NodeHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NodeHandler.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -145,6 +146,7 @@
 		D10E0F37244F8AE90042E939 = {
 			isa = PBXGroup;
 			children = (
+				D1100C2F2451EA5E00A656BF /* NodeHandler.h */,
 				D10E0F82244FA07E0042E939 /* a1-test.cc */,
 				D10E0F8B244FA07F0042E939 /* a1-test.h */,
 				D10E0F56244FA07C0042E939 /* a2-1-test.cc */,
