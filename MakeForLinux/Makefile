@@ -7,22 +7,25 @@ ifdef linux
 tag = -n
 endif
 
-#gtest: Record.o Comparison.o ComparisonEngine.o Schema.o File.o Run.o Function.o RelOp.o RecordComparator.o Global.o RunComparator.o BigQ.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Pipe.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o gtest-all.o gtest.o
-#	$(CC) -o gtest Record.o Comparison.o ComparisonEngine.o Schema.o File.o Run.o Function.o RelOp.o RecordComparator.o Global.o RunComparator.o BigQ.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Pipe.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o gtest-all.o gtest.o -ll -lpthread
 
-
-gtest: Statistics.o RelationHelper.o AttributeHelper.o y.tab.o lex.yy.o gtest-all.o gtest.o
-	$(CC) -o gtest Statistics.o RelationHelper.o AttributeHelper.o y.tab.o lex.yy.o gtest-all.o gtest.o -lfl -lpthread
+gtest: y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o File.o Run.o RecordComparator.o RunComparator.o BigQ.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Statistics.o RelationHelper.o AttributeHelper.o gtest-all.o gtest.o
+	$(CC) -o gtest y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o File.o Run.o RecordComparator.o RunComparator.o BigQ.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Statistics.o RelationHelper.o AttributeHelper.o gtest-all.o gtest.o -lfl -lpthread
 #gtest-all.o: gtest-all.cc
 #	$(CC)  -g -DGTEST_HAS_PTHREAD=0 -c gtest-all.cc
 gtest-all.o: gtest-all.cc
 	$(CC)  -g -c gtest-all.cc
 #-DGTEST_HAS_PTHREAD=0
 
-test: Statistics.o RelationHelper.o AttributeHelper.o y.tab.o lex.yy.o test.o
-	$(CC) -o test Statistics.o RelationHelper.o AttributeHelper.o y.tab.o lex.yy.o test.o -lfl -lpthread
+#test: Statistics.o RelationHelper.o AttributeHelper.o y.tab.o lex.yy.o test.o
+#	$(CC) -o test Statistics.o RelationHelper.o AttributeHelper.o y.tab.o lex.yy.o test.o -lfl -lpthread
 
 
+main: y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o File.o Run.o RecordComparator.o RunComparator.o BigQ.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Statistics.o RelationHelper.o AttributeHelper.o main.o
+	$(CC) -o a42.out y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o File.o Run.o RecordComparator.o RunComparator.o BigQ.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Statistics.o RelationHelper.o AttributeHelper.o main.o -lfl -lpthread
+#
+#	main:   y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o Statistics.o main.o
+#	$(CC) -o main y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o Statistics.o main.o -ll -lpthread
+#
 
 
 a3test: Record.o Comparison.o ComparisonEngine.o Schema.o File.o Run.o Function.o RelOp.o RecordComparator.o RunComparator.o BigQ.o Global.o FileHandler.o HeapHandler.o SortedFileHandler.o DBFile.o Pipe.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o a3test.o
@@ -39,6 +42,9 @@ a22test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o Run.o Reco
 
 test.o: test.cc
 	$(CC) -g -c test.cc
+	
+main.o : main.cc
+	$(CC) -g -c main.cc
 	
 a2-1-test.o: a2-1-test.cc
 	$(CC) -g -c a2-1-test.cc

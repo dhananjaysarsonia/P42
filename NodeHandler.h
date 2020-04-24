@@ -177,7 +177,7 @@ public:
 
 
 class NodeSum : public BaseNode {
-    //Node for sum operation
+    //Node for sum operation.
 public:
     
     Function funcCompute;
