@@ -25,6 +25,8 @@ extern struct NameList *attsToSelect; // attributes to select
 extern struct FuncOperator *finalFunction; // To be used to aggregate
 extern struct TableList *tables; //list of tables
 extern int distinctFunc;
+typedef map<string, AndList> booleanMap;
+typedef map<string,bool> Loopkup;
 
 
 
@@ -63,18 +65,151 @@ typedef map<string, Schema> SchemaMap;
 typedef map<string, string> AliaseMap;
 
 
+ booleanMap JoinFilter(AndList *parseTree) {
+    booleanMap bmap;
+    string delimiter = ".";
+    vector <string> fKey;
+    AndList * head = NULL;
+    AndList * root = NULL;
 
+    // now we go through and build the comparison structure
+    for (int andIndex = 0; 1; andIndex++, parseTree = parseTree->rightAnd) {
+        
+        // see if we have run off of the end of all of the ANDs
+        if (parseTree == NULL) {
+            // done
+            break;
+        }
+
+        // we have not, so copy over all of the ORs hanging off of this AND
+        struct OrList *myOr = parseTree->left;
+        for (int orIndex = 0; 1; orIndex++, myOr = myOr->rightOr) {
+
+            // see if we have run off of the end of the ORs
+            if (myOr == NULL) {
+                // done with parsing
+                break;
+            }
+
+            // we have not run off the list, so add the current OR in!
+            
+            // these store the types of the two values that are found
+            Type tLeft;
+            Type tRight;
+
+            // first thing is to deal with the left operand
+            // so we check to see if it is an attribute name, and if so,
+            // we look it up in the schema
+            if (myOr->left->left->code == NAME) {
+                if (myOr->left->right->code == NAME)
+                {
+                    string key1,key2;
+
+                    // left table string
+                    string lts = myOr->left->left->value;
+                    string pushlts = lts.substr(0, lts.find(delimiter));
+
+                    // right table string
+                    string rts = myOr->left->right->value;
+                    string pushrts = rts.substr(0, rts.find(delimiter));
+                    
+                    key1= pushlts+pushrts;
+                    key2 = pushrts+pushlts;
+                    fKey.push_back(pushlts);
+                    fKey.push_back(pushrts);
+
+                    AndList pushAndList;
+                    pushAndList.left=parseTree->left;
+                    pushAndList.rightAnd=NULL;
+                    
+                    if(head==NULL){
+                        root = new AndList;
+                        root->left=parseTree->left;
+                        root->rightAnd=NULL;
+                        head = root;
+                    }
+                    else{
+                        root->rightAnd =  new AndList;
+                        root = root->rightAnd ;
+                        root->left=parseTree->left;
+                        root->rightAnd=NULL;
+                    }
+                    
+                    bmap[key1] = pushAndList;
+                    bmap[key2] = pushAndList;
+
+                }
+                else if (myOr->left->right->code == STRING  ||
+                        myOr->left->right->code == INT      ||
+                        myOr->left->right->code == DOUBLE)
+                {
+                    continue;
+                }
+                else
+                {
+                    cerr << "You gave me some strange type for an operand that I do not recognize!!\n";
+                    //return -1;
+                }
+            }
+            else if (myOr->left->left->code == STRING   ||
+                    myOr->left->left->code == INT       ||
+                    myOr->left->left->code == DOUBLE)
+            {
+                continue;
+            }
+            // catch-all case
+            else
+            {
+                cerr << "You gave me some strange type for an operand that I do not recognize!!\n";
+                //return -1;
+            }
+
+            // now we check to make sure that there was not a type mismatch
+            if (tLeft != tRight) {
+                cerr<< "ERROR! Type mismatch in Boolean  "
+                << myOr->left->left->value << " and "
+                << myOr->left->right->value << " were found to not match.\n";
+            }
+        }
+    }
+    
+    if (fKey.size()>0){
+        Loopkup h;
+        vector <string> keyf;
+        for (int k = 0; k<fKey.size();k++){
+            if (h.find(fKey[k]) == h.end()){
+                keyf.push_back(fKey[k]);
+                h[fKey[k]]=true;
+            }
+        }
+
+        sort(keyf.begin(), keyf.end());
+        do
+        {
+            string str="";
+            for (int k = 0; k<keyf.size();k++){
+                str+=keyf[k];
+            }
+            bmap[str] = *head;
+        }while(next_permutation(keyf.begin(),keyf.end()));
+    }
+    return bmap;
+}
 
 
 void FindMinCostJoin( vector<char *> &jOrder, vector<char *> &tbNames, Statistics &stat, vector<char *> &buff){
       int minimum = INT_MAX;
       int currentCost = 0;
+        booleanMap bmap = JoinFilter(boolean);
+
       do {
           Statistics temp (stat);
+          int bfIndexer = 0;
 
           auto tbItem = tbNames.begin ();
-          buff[0] = *tbItem;
+          buff[bfIndexer] = *tbItem;
           tbItem++;
+          bfIndexer++;
 //          for(int i = 0 ; i < tbNames.size(); i++){
 //
 //              cout << tbNames[i] << ", ";
@@ -83,7 +218,16 @@ void FindMinCostJoin( vector<char *> &jOrder, vector<char *> &tbNames, Statistic
         //  cout << endl;
           while (tbItem != tbNames.end ()) {
 
-              buff[1] = *tbItem;
+              buff[bfIndexer] = *tbItem;
+              string key = "";
+              
+              for ( int c = 0; c<=bfIndexer;c++){
+                                key += string(buff[c]);
+                            }
+                            
+                            if (bmap.find(key) == bmap.end()) {
+                                break;
+                            }
               currentCost += temp.Estimate (boolean, &buff[0], 2);
               temp.Apply (boolean, &buff[0], 2);
 //             cout << "Buffer 0" << buff[0] << endl;
@@ -93,6 +237,7 @@ void FindMinCostJoin( vector<char *> &jOrder, vector<char *> &tbNames, Statistic
                   break;
               }
               tbItem++;
+              bfIndexer++;
           }
           if (currentCost > 0 && currentCost < minimum) {
               minimum = currentCost;
@@ -249,6 +394,9 @@ void PrintFunction (FuncOperator *funcOp) {
     
 }
 
+
+
+
 int main () {
     //getting the sql from the user
     cout << "SQL>>" << endl;
@@ -259,7 +407,7 @@ int main () {
     AliaseMap aliaseMap;
     vector<char *> tbNames;
     vector<char *> jOrder;
-    vector<char *> buff (2);
+    vector<char *> buff(2);
     SchemaMap schemaMap;
     Statistics stat;
     //initializing schema map with the schemas given
